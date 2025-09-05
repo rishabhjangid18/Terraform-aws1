@@ -15,13 +15,18 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
 
-    defaults:
-      run:
-        working-directory: ./envs/${{ github.ref_name }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set environment path
+        id: setpath
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            echo "env_path=./envs/dev" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "env_path=./envs/prod" >> $GITHUB_ENV
+          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -30,13 +35,17 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: ${{ env.env_path }}
 
       - name: Terraform Validate
         run: terraform validate
+        working-directory: ${{ env.env_path }}
 
       - name: Terraform Plan
         run: terraform plan -var-file=terraform.tfvars
+        working-directory: ${{ env.env_path }}
 
       - name: Terraform Apply (on push only)
         if: github.event_name == 'push'
         run: terraform apply -auto-approve -var-file=terraform.tfvars
+        working-directory: ${{ env.env_path }}
