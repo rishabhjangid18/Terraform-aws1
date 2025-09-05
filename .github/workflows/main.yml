@@ -23,9 +23,9 @@ jobs:
         id: setpath
         run: |
           if [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
-            echo "env_path=./envs/dev" >> $GITHUB_ENV
+            echo "env_path=envs/dev" >> $GITHUB_ENV
           elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            echo "env_path=./envs/prod" >> $GITHUB_ENV
+            echo "env_path=envs/prod" >> $GITHUB_ENV
           fi
 
       - name: Setup Terraform
@@ -34,18 +34,14 @@ jobs:
           terraform_version: 1.6.6
 
       - name: Terraform Init
-        run: terraform init
-        working-directory: ${{ env.env_path }}
+        run: terraform -chdir=${{ env.env_path }} init
 
       - name: Terraform Validate
-        run: terraform validate
-        working-directory: ${{ env.env_path }}
+        run: terraform -chdir=${{ env.env_path }} validate
 
       - name: Terraform Plan
-        run: terraform plan -var-file=terraform.tfvars
-        working-directory: ${{ env.env_path }}
+        run: terraform -chdir=${{ env.env_path }} plan -var-file=terraform.tfvars
 
       - name: Terraform Apply (on push only)
         if: github.event_name == 'push'
-        run: terraform apply -auto-approve -var-file=terraform.tfvars
-        working-directory: ${{ env.env_path }}
+        run: terraform -chdir=${{ env.env_path }} apply -auto-approve -var-file=terraform.tfvars
