@@ -5,6 +5,7 @@ on:
     branches:
       - dev
       - main
+
 env:
   AWS_REGION: ap-south-1
   TF_VERSION: 1.6.6
@@ -13,18 +14,21 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
 
+    # 👇 Environment defined at JOB level (not step level)
+    environment: |
+      ${{
+        github.ref == 'refs/heads/main' && 'production' || 'development'
+      }}
+
     steps:
-      # Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      # Select environment path based on branch
       - name: Select environment
         run: |
           if [[ "${GITHUB_REF##*/}" == "main" ]]; then
@@ -33,34 +37,26 @@ jobs:
             echo "env_path=envs/dev" >> $GITHUB_ENV
           fi
 
-      # Configure AWS credentials (OIDC recommended, else use secrets)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # 👉 Or use role-to-assume with GitHub OIDC for better security
 
-      # Terraform Init
       - name: Terraform Init
         run: terraform -chdir=${{ env.env_path }} init -reconfigure
 
-      # Terraform Validate
       - name: Terraform Validate
         run: terraform -chdir=${{ env.env_path }} validate
 
-      # Terraform Plan
       - name: Terraform Plan
         run: terraform -chdir=${{ env.env_path }} plan -out=tfplan
 
-      # Terraform Apply in Dev (auto)
       - name: Terraform Apply (Dev)
         if: github.ref == 'refs/heads/dev'
         run: terraform -chdir=${{ env.env_path }} apply -auto-approve tfplan
 
-      # Terraform Apply in Prod (requires approval)
       - name: Terraform Apply (Prod)
         if: github.ref == 'refs/heads/main'
-        environment: production   # GitHub Environments approval required
         run: terraform -chdir=${{ env.env_path }} apply -auto-approve tfplan
