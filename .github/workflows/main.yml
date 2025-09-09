@@ -1,47 +1,67 @@
-name: Terraform CI/CD
+name: Terraform AWS CI/CD
 
 on:
-  pull_request:
-    branches: ["dev", "main"]
   push:
-    branches: ["dev", "main"]
+    branches:
+      - dev
+      - main
+
+env:
+  AWS_REGION: ap-south-1
+  TF_VERSION: 1.6.6
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
 
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Set environment path
-        id: setpath
+      # Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      # Select environment path based on branch
+      - name: Select environment
         run: |
-          if [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
-            echo "env_path=envs/dev" >> $GITHUB_ENV
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
             echo "env_path=envs/prod" >> $GITHUB_ENV
+          else
+            echo "env_path=envs/dev" >> $GITHUB_ENV
           fi
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      # Configure AWS credentials (OIDC recommended, else use secrets)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          terraform_version: 1.6.6
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # 👉 Or use role-to-assume with GitHub OIDC for better security
 
+      # Terraform Init
       - name: Terraform Init
-        run: terraform -chdir=${{ env.env_path }} init
+        run: terraform -chdir=${{ env.env_path }} init -reconfigure
 
+      # Terraform Validate
       - name: Terraform Validate
         run: terraform -chdir=${{ env.env_path }} validate
 
+      # Terraform Plan
       - name: Terraform Plan
-        run: terraform -chdir=${{ env.env_path }} plan -var-file=terraform.tfvars
+        run: terraform -chdir=${{ env.env_path }} plan -out=tfplan
 
-      - name: Terraform Apply (on push only)
-        if: github.event_name == 'push'
-        run: terraform -chdir=${{ env.env_path }} apply -auto-approve -var-file=terraform.tfvars
+      # Terraform Apply in Dev (auto)
+      - name: Terraform Apply (Dev)
+        if: github.ref == 'refs/heads/dev'
+        run: terraform -chdir=${{ env.env_path }} apply -auto-approve tfplan
+
+      # Terraform Apply in Prod (requires approval)
+      - name: Terraform Apply (Prod)
+        if: github.ref == 'refs/heads/main'
+        environment: production   # GitHub Environments approval required
+        run: terraform -chdir=${{ env.env_path }} apply -auto-approve tfplan
