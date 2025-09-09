@@ -41,7 +41,8 @@ module "sg" {
   vpc_id        = module.vpc.vpc_id
   prefix        = var.prefix
   subnet_ids    = [module.subnet_public.subnet_id, module.subnet_private.subnet_id]
-  service_names = ["app","db"]                # or whatever services
-  allowed_cidrs = var.sg_allowed_cidrs
+  service_names = var.sg_service_names      # must be defined in variables.tf
+  allowed_cidrs = var.sg_allowed_cidrs     # must be defined in variables.tf
 }
+
 
