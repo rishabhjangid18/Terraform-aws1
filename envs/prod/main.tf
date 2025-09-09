@@ -1,12 +1,12 @@
 module "vpc" {
-  source         = "../modules/vpc"
+  source         = "../../modules/vpc"
   vpc_cidr_block = var.vpc_cidr_block
   vpc_name       = "${var.env}-vpc"
   tags           = var.tags
 }
 
 module "subnet" {
-  source               = "../modules/subnet"
+  source               = "../../modules/subnet"
   vpc_id               = module.vpc.vpc_id
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
@@ -16,7 +16,7 @@ module "subnet" {
 }
 
 module "sg" {
-  source        = "../modules/security-group"
+  source        = "../../modules/security-group"
   vpc_id        = module.vpc.vpc_id
   sg_name       = "${var.env}-sg"
   ingress_cidrs = var.sg_ingress_cidrs
