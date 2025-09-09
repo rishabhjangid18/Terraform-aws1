@@ -40,7 +40,8 @@ module "sg" {
   source        = "../../modules/security-group"
   vpc_id        = module.vpc.vpc_id
   prefix        = var.prefix
-  subnet_ids    = [module.subnet_public.id, module.subnet_private.id]
-  service_names = ["app", "db"]            # replace with your services
+  subnet_ids    = [module.subnet_public.subnet_id, module.subnet_private.subnet_id]
+  service_names = ["app","db"]                # or whatever services
   allowed_cidrs = var.sg_allowed_cidrs
 }
+
