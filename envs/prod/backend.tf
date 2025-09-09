@@ -3,7 +3,7 @@ terraform {
     bucket         = "terraform-cicd-8099"
     key            = "prod/networking/terraform.tfstate"
     region         = "ap-south-1"
-    dynamodb_table = "terraform-locks"
+    dynamodb_table = "terraform-locks-cicd1"
     encrypt        = true
   }
 }
